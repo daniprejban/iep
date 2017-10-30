@@ -1,58 +1,71 @@
-// blink.c
+//
 //
 // Example program for bcm2835 library
-// Blinks a pin on an off every 0.5 secs
+// Shows how to use PWM to control GPIO pins
 //
 // After installing bcm2835, you can build this
 // with something like:
-// gcc -o blink blink.c -l bcm2835
-// sudo ./blink
+// gcc -o pwm pwm.c -l bcm2835
+// sudo ./pwm
 //
 // Or you can test it before installing with:
-// gcc -o blink -I ../../src ../../src/bcm2835.c blink.c
-// sudo ./blink
+// gcc -o pwm -I ../../src ../../src/bcm2835.c pwm.c
+// sudo ./pwm
+//
+// Connect an LED between GPIO18 (pin 12) and GND to observe the LED changing in brightness
 //
 // Author: Mike McCauley
-// Copyright (C) 2011 Mike McCauley
+// Copyright (C) 2013 Mike McCauley
 // $Id: RF22.h,v 1.21 2012/05/30 01:51:25 mikem Exp $
 #include <bcm2835.h>
 #include <stdio.h>
 #include "pinclass.h"
-// Blinks on RPi Plug P1 pin 11 (which is GPIO pin 17)
-#define PIN RPI_GPIO_P1_11
-using namespace std;
-
+#include "pwm.h"
+// PWM output on RPi Plug P1 pin 12 (which is GPIO pin 18)
+// in alt fun 5.
+// Note that this is the _only_ PWM pin available on the RPi IO headers
+#define PIN RPI_GPIO_P1_12
+// and it is controlled by PWM channel 0
+#define PWM_CHANNEL 0
+// This controls the max range of the PWM signal
+#define RANGE 1024
 int main(int argc, char **argv)
 {
-
-    Pinclass *pin = new Pinclass(PIN,HIGH,BCM2835_GPIO_FSEL_OUTP);
-    // If you call this, it will not actually access the GPIO
-    // Use for testing
     bcm2835_set_debug(1);
     if (!bcm2835_init())
-      return 1;
-    // Set the pin to be an output
-   // bcm2835_gpio_fsel(PIN, BCM2835_GPIO_FSEL_OUTP);
-    // Blink
+        return 1;
+    // Set the output pin to Alt Fun 5, to allow PWM channel 0 to be output there
+    bcm2835_gpio_fsel(PIN, BCM2835_GPIO_FSEL_ALT5);
 
-    printf("Ar trebui sa ma vezi\n");
+    Pinclass *pin = new Pinclass(PIN,LOW,BCM2835_GPIO_FSEL_INPT);
+    Pwm *pwm = new Pwm(50,50);
 
+    // Clock divider is set to 16.
+    // With a divider of 16 and a RANGE of 1024, in MARKSPACE mode,
+    // the pulse repetition frequency will be
+    // 1.2MHz/1024 = 1171.875Hz, suitable for driving a DC motor with PWM
+    //bcm2835_pwm_set_clock(BCM2835_PWM_CLOCK_DIVIDER_16);
+    //bcm2835_pwm_set_mode(PWM_CHANNEL, 1, 1);
+   // bcm2835_pwm_set_range(PWM_CHANNEL, RANGE);
+    // Vary the PWM m/s ratio between 1/RANGE and (RANGE-1)/RANGE
+    // over the course of a a few seconds
+    //int direction = 1; // 1 is increase, -1 is decrease
+    //int data = 1;
     while (1)
     {
-        // Turn it on
-        //bcm2835_gpio_write(PIN, HIGH);
-        pin->Set(HIGH);
-        // wait a bit
-        bcm2835_delay(500);
+        /*if (data == 1)
+            direction = 1;   // Switch to increasing
+        else if (data == RANGE-1)
+            direction = -1;  // Switch to decreasing
+        data += direction;
+        bcm2835_pwm_set_data(PWM_CHANNEL, data);
+        */
 
-        // turn it off
-         pin->Set(LOW);
-        //bcm2835_gpio_write(PIN, LOW);
+        pwm->Set_duty_cycle(75);
 
+        bcm2835_delay(10);
 
-        // wait a bit
-        bcm2835_delay(500);
-
+        pwm->Set_duty_cycle(50);
     }
     bcm2835_close();
     return 0;
